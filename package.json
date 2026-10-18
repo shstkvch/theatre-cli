@@ -1,0 +1,43 @@
+{
+  "name": "theatre-cli",
+  "version": "0.1.0",
+  "description": "What's on in Glasgow's theatres, from your terminal",
+  "type": "module",
+  "bin": {
+    "theatre": "bin/theatre.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "start": "node bin/theatre.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "theatre",
+    "glasgow",
+    "whats-on",
+    "events",
+    "cli",
+    "scotland"
+  ],
+  "license": "MIT",
+  "author": "David Hewitson",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shstkvch/theatre-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shstkvch/theatre-cli/issues"
+  },
+  "homepage": "https://github.com/shstkvch/theatre-cli#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
