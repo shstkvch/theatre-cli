@@ -226,6 +226,9 @@ export function renderAgenda({
   if (occurrences.some((occurrence) => occurrence.time == null)) {
     notes.push("TBC = the venue has not published a time");
   }
+  if (occurrences.some((occurrence) => priceLabel(occurrence) === "—")) {
+    notes.push("— = the venue has not published a price");
+  }
   if (notes.length) {
     lines.push("");
     lines.push(painter.dim(notes.join(" · ")));
@@ -271,6 +274,12 @@ export function renderMonth({
   const footer = painter.dim(
     `${countLabel(runs.length, "show")} · ${countLabel(venueCount, "venue")} · glasgowtheatre.com`,
   );
+  const priceNote = runs.some(
+    ({ show }) =>
+      priceLabel({ show, price: null }, { fromPrefix: false }) === "—",
+  )
+    ? painter.dim("— = the venue has not published a price")
+    : null;
 
   // On a wide terminal, put half the run list beside the other half. The
   // compact row keeps the date (or "until 7 Nov") plus venue and price, and
@@ -330,6 +339,7 @@ export function renderMonth({
         `${padVisible(leftLine, columnWidth)}${gutter}${rightLine}`.trimEnd(),
       );
     }
+    if (priceNote) lines.push("", priceNote);
     lines.push("", footer);
     return `${lines.join("\n")}\n`;
   }
@@ -365,6 +375,7 @@ export function renderMonth({
     );
   }
 
+  if (priceNote) lines.push("", priceNote);
   lines.push("", footer);
   return `${lines.join("\n")}\n`;
 }
@@ -483,7 +494,12 @@ export function renderShow({ show, venue, painter, width }) {
       }
     } else if (show.pricing.from != null) {
       lines.push(`Prices: from ${money(show.pricing.from)}`);
+    } else {
+      lines.push("Prices: not published by the venue");
     }
+  } else {
+    lines.push("");
+    lines.push("Prices: not published by the venue");
   }
 
   if (show.durationMinutes) {

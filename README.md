@@ -94,7 +94,9 @@ theatre month --q macbeth
   schedule. Without it, a three-week opera run would look confirmed every
   night.
 - **Prices** are for that exact performance when the API has one. Otherwise
-  the row says `from £x`, `free`, `PWYL`, or `—` when no price was published.
+  the row says `from £x`, `free`, `PWYL`, or `—` when the venue did not publish
+  a price. The site says "Prices not published" for the same rows; the CLI now
+  prints a legend so the dash cannot be mistaken for free.
 - **`month`** is one line per show, not one line per night, so a long run does
   not swamp the list.
 - **Two columns on a wide terminal.** `theatre week` and `theatre month`

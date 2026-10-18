@@ -6,6 +6,7 @@ import {
   priceLabel,
   renderAgenda,
   renderMonth,
+  renderShow,
   renderVenues,
   truncate,
 } from "../src/format.js";
@@ -268,4 +269,58 @@ test("a narrow or wide-flagged month stays in one column", () => {
   });
   assert.doesNotMatch(wide, / │ /);
   assert.match(wide, /OPENS/);
+});
+
+
+test("a missing price is labelled rather than looking like free", () => {
+  const output = renderAgenda({
+    dates: ["2026-10-22"],
+    occurrences: [
+      occurrence({
+        show: show({ pricing: null }),
+        time: "19:30",
+      }),
+    ],
+    today: "2026-10-18",
+    label: "Thursday 22 October 2026",
+    painter,
+    width: 100,
+    venueFor: () => venue,
+  });
+  assert.match(output, /— = the venue has not published a price/);
+});
+
+test("the month view also explains missing prices", () => {
+  const output = renderMonth({
+    runs: [
+      {
+        show: show({
+          run: { opens: "2026-10-22", closes: "2026-10-22" },
+          pricing: null,
+        }),
+        firstDate: "2026-10-22",
+        startsBefore: false,
+      },
+    ],
+    label: "18 Oct – 16 Nov 2026",
+    today: "2026-10-18",
+    painter,
+    width: 100,
+    venueFor: () => venue,
+  });
+  assert.match(output, /— = the venue has not published a price/);
+});
+
+test("a show page says when the venue published no price", () => {
+  const output = renderShow({
+    show: show({
+      pricing: null,
+      performances: [{ date: "2026-10-22", time: "19:30" }],
+      description: "A show.",
+    }),
+    venue,
+    painter,
+    width: 100,
+  });
+  assert.match(output, /Prices: not published by the venue/);
 });
