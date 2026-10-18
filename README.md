@@ -95,7 +95,7 @@ theatre month --q macbeth
   night.
 - **Prices** are for that exact performance when the API has one. Otherwise
   the row says `from £x`, `free`, `PWYL`, or `—` when the venue did not publish
-  a price. The site says "Prices not published" for the same rows; the CLI now
+  a price. A zero-priced performance reads as `free`, never `£0`. The CLI
   prints a legend so the dash cannot be mistaken for free.
 - **`month`** is one line per show, not one line per night, so a long run does
   not swamp the list.

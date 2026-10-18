@@ -35,10 +35,14 @@ export function money(value) {
 }
 
 export function priceLabel(occurrence, { fromPrefix = true } = {}) {
-  if (occurrence.price != null) return money(occurrence.price);
   const pricing = occurrence.show.pricing;
-  if (!pricing) return "—";
+  // A zero-priced performance is a free one, not a £0 ticket.
+  if (occurrence.price != null && occurrence.price > 0) {
+    return money(occurrence.price);
+  }
+  if (!pricing) return occurrence.price === 0 ? "free" : "—";
   if (pricing.free) return "free";
+  if (occurrence.price === 0) return "free";
   if (pricing.payWhatYouLike) return "PWYL";
   if (pricing.from == null) return "—";
   return fromPrefix ? `from ${money(pricing.from)}` : money(pricing.from);

@@ -77,6 +77,19 @@ test("prices prefer the night's exact price, then the run's from price", () => {
   );
 });
 
+test("a zero price is free, not a £0 ticket", () => {
+  assert.equal(priceLabel(occurrence({ price: 0 })), "free");
+  assert.equal(
+    priceLabel(
+      occurrence({
+        price: 0,
+        show: show({ pricing: { from: 0, free: true, payWhatYouLike: false } }),
+      }),
+    ),
+    "free",
+  );
+});
+
 test("long titles truncate at a word when they can", () => {
   assert.equal(truncate("short", 10), "short");
   assert.equal(truncate("a very long show title", 12), "a very long…");
