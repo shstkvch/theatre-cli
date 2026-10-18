@@ -151,3 +151,121 @@ test("colour can be switched on for a truecolor terminal", () => {
   assert.match(pill, /\x1b\[38;2;255;255;255m/);
   assert.match(pill, /Tron Theatre/);
 });
+
+test("a wide week lays the days out in two balanced columns", () => {
+  const dates = [
+    "2026-10-18",
+    "2026-10-19",
+    "2026-10-20",
+    "2026-10-21",
+    "2026-10-22",
+    "2026-10-23",
+  ];
+  const occurrences = dates.map((date) =>
+    occurrence({
+      date,
+      show: show({
+        run: { opens: date, closes: date, time: "19:30" },
+      }),
+    }),
+  );
+  const output = renderAgenda({
+    dates,
+    occurrences,
+    today: "2026-10-18",
+    label: "Sun 18 – Fri 23 October 2026",
+    painter,
+    width: 140,
+    venueFor: () => venue,
+  });
+  assert.match(output, / │ /);
+  assert.match(output, /SUN 18 OCT.* │ .*WED 21 OCT/);
+});
+
+test("a narrow terminal keeps the week in one column", () => {
+  const dates = ["2026-10-18", "2026-10-19", "2026-10-20"];
+  const occurrences = dates.map((date) =>
+    occurrence({
+      date,
+      show: show({
+        run: { opens: date, closes: date, time: "19:30" },
+      }),
+    }),
+  );
+  const output = renderAgenda({
+    dates,
+    occurrences,
+    today: "2026-10-18",
+    label: "Sun 18 – Tue 20 October 2026",
+    painter,
+    width: 120,
+    venueFor: () => venue,
+  });
+  assert.doesNotMatch(output, / │ /);
+  assert.match(output, /SUN 18 OCT/);
+  assert.match(output, /MON 19 OCT/);
+});
+
+test("a wide month puts the run list in two columns", () => {
+  const runs = Array.from({ length: 10 }, (_, index) => {
+    const date = `2026-10-${String(18 + index).padStart(2, "0")}`;
+    return {
+      show: show({
+        id: `show-${index}`,
+        title: `Show number ${index + 1}`,
+        run: { opens: date, closes: date },
+      }),
+      firstDate: date,
+      startsBefore: false,
+    };
+  });
+  const output = renderMonth({
+    runs,
+    label: "18 Oct – 16 Nov 2026",
+    today: "2026-10-18",
+    painter,
+    width: 140,
+    venueFor: () => venue,
+  });
+  assert.match(output, / │ /);
+  assert.match(output, /WHEN/);
+  assert.doesNotMatch(output, /OPENS/);
+  assert.equal(output.match(/WHEN/g).length, 2);
+});
+
+test("a narrow or wide-flagged month stays in one column", () => {
+  const runs = Array.from({ length: 10 }, (_, index) => {
+    const date = `2026-10-${String(18 + index).padStart(2, "0")}`;
+    return {
+      show: show({
+        id: `show-${index}`,
+        title: `Show number ${index + 1}`,
+        run: { opens: date, closes: date },
+      }),
+      firstDate: date,
+      startsBefore: false,
+    };
+  });
+  const narrow = renderMonth({
+    runs,
+    label: "18 Oct – 16 Nov 2026",
+    today: "2026-10-18",
+    painter,
+    width: 120,
+    venueFor: () => venue,
+  });
+  assert.doesNotMatch(narrow, / │ /);
+  assert.match(narrow, /OPENS/);
+
+  const wide = renderMonth({
+    runs,
+    label: "18 Oct – 16 Nov 2026",
+    today: "2026-10-18",
+    painter,
+    width: 140,
+    venueFor: () => venue,
+    wide: true,
+  });
+  assert.doesNotMatch(wide, / │ /);
+  assert.match(wide, /OPENS/);
+});

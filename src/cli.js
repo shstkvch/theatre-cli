@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { loadData } from "./api.js";
 import {
@@ -33,10 +32,7 @@ import {
   renderShow,
   renderVenues,
 } from "./format.js";
-
-const pkg = JSON.parse(
-  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
-);
+import { VERSION } from "./version.js";
 
 const OPTIONS = {
   venue: { type: "string", multiple: true },
@@ -168,7 +164,7 @@ export async function main(args = []) {
     return;
   }
   if (values.version) {
-    process.stdout.write(`${pkg.version}\n`);
+    process.stdout.write(`${VERSION}\n`);
     return;
   }
 
@@ -327,7 +323,9 @@ export async function main(args = []) {
     return;
   }
 
-  const width = values.wide ? 1000 : process.stdout.columns || 100;
+  const width = values.wide
+    ? 1000
+    : Number(process.env.THEATRE_WIDTH) || process.stdout.columns || 100;
 
   if (command === "month") {
     const runs = buildRuns(filtered, from, to);
@@ -373,6 +371,7 @@ export async function main(args = []) {
       painter,
       width,
       venueFor,
+      wide: Boolean(values.wide),
     }),
   );
 }

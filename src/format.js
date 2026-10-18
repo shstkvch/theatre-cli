@@ -54,7 +54,7 @@ function countLabel(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function agendaWidths(occurrences, totalWidth) {
+function agendaWidths(occurrences, totalWidth, { compact = false } = {}) {
   const timeWidth = 7;
   const priceWidth = Math.max(
     5,
@@ -62,19 +62,79 @@ function agendaWidths(occurrences, totalWidth) {
   );
   const venueNames = occurrences.map((occurrence) => occurrence.show.venue.name);
   const venueWidth = Math.min(
-    24,
+    compact ? 16 : 24,
     Math.max(16, ...venueNames.map((name) => name.length)),
   );
   const maxTitle = Math.max(
     16,
     ...occurrences.map((occurrence) => occurrence.show.title.length),
   );
+  const titleCap = compact ? 40 : Number.POSITIVE_INFINITY;
   const fixed = 15 + venueWidth + priceWidth;
   const titleWidth = Math.max(
     16,
-    Math.min(maxTitle, totalWidth - fixed),
+    Math.min(maxTitle, titleCap, totalWidth - fixed),
   );
   return { timeWidth, priceWidth, venueWidth, titleWidth };
+}
+
+const ANSI = /\x1b\[[0-9;]*m/g;
+const visibleLength = (text) => text.replace(ANSI, "").length;
+const padVisible = (text, width) =>
+  `${text}${" ".repeat(Math.max(0, width - visibleLength(text)))}`;
+
+function dayBlock({ date, rows, today, painter, widths, venueFor }) {
+  const { timeWidth, priceWidth, venueWidth, titleWidth } = widths;
+  const meta = [date === today ? "TODAY" : null, String(rows.length)]
+    .filter(Boolean)
+    .join(" · ");
+  const lines = [
+    `${painter.bold(formatDayHeader(date))}${painter.dim(` · ${meta}`)}`,
+  ];
+
+  if (!rows.length) {
+    lines.push(painter.dim("  Nothing listed."));
+    return lines;
+  }
+
+  for (const occurrence of rows) {
+    const time = `${formatTime(occurrence.time)}${occurrence.runOnly ? "*" : ""}`;
+    const title = truncate(occurrence.show.title, titleWidth);
+    const venue = venuePill(venueFor(occurrence.show), venueWidth, painter);
+    const price = priceLabel(occurrence);
+    lines.push(
+      `  ${painter.cyan(time.padStart(timeWidth))}  ${painter.bold(title.padEnd(titleWidth))}  ${venue}  ${painter.dim(price.padStart(priceWidth))}`,
+    );
+  }
+  return lines;
+}
+
+function stackBlocks(blocks) {
+  const lines = [];
+  for (const block of blocks) {
+    if (lines.length) lines.push("");
+    lines.push(...block);
+  }
+  return lines;
+}
+
+/** Split a week where the two columns end up roughly the same height. */
+function balancedSplit(blocks) {
+  if (blocks.length < 2) return blocks.length;
+  const heights = blocks.map((block) => block.length + 1);
+  const total = heights.reduce((sum, height) => sum + height, 0);
+  let best = 1;
+  let bestDifference = Number.POSITIVE_INFINITY;
+  let left = 0;
+  for (let index = 1; index < blocks.length; index += 1) {
+    left += heights[index - 1];
+    const difference = Math.abs(left - (total - left));
+    if (difference < bestDifference) {
+      bestDifference = difference;
+      best = index;
+    }
+  }
+  return best;
 }
 
 export function renderAgenda({
@@ -85,6 +145,7 @@ export function renderAgenda({
   painter,
   width,
   venueFor,
+  wide = false,
 }) {
   const groups = new Map();
   for (const occurrence of occurrences) {
@@ -92,42 +153,71 @@ export function renderAgenda({
     groups.get(occurrence.date).push(occurrence);
   }
 
-  const { timeWidth, priceWidth, venueWidth, titleWidth } = agendaWidths(
-    occurrences,
-    width,
+  const fullWidths = agendaWidths(occurrences, width);
+  const blocks = dates.map((date) =>
+    dayBlock({
+      date,
+      rows: groups.get(date) || [],
+      today,
+      painter,
+      widths: fullWidths,
+      venueFor,
+    }),
   );
-  const lines = [`${painter.bold("Glasgow Theatre")} · ${label}`, ""];
 
-  dates.forEach((date, index) => {
-    if (index > 0) lines.push("");
-    const rows = groups.get(date) || [];
-    const meta = [
-      date === today ? "TODAY" : null,
-      String(rows.length),
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    lines.push(`${painter.bold(formatDayHeader(date))}${painter.dim(` · ${meta}`)}`);
+  let body = stackBlocks(blocks);
 
-    if (!rows.length) {
-      lines.push(painter.dim("  Nothing listed."));
-      return;
-    }
-
-    for (const occurrence of rows) {
-      const time = `${formatTime(occurrence.time)}${occurrence.runOnly ? "*" : ""}`;
-      const title = truncate(occurrence.show.title, titleWidth);
-      const venue = venuePill(
-        venueFor(occurrence.show),
-        venueWidth,
-        painter,
-      );
-      const price = priceLabel(occurrence);
-      lines.push(
-        `  ${painter.cyan(time.padStart(timeWidth))}  ${painter.bold(title.padEnd(titleWidth))}  ${venue}  ${painter.dim(price.padStart(priceWidth))}`,
-      );
-    }
+  // On a wide terminal, read the week as two newspaper columns. The column
+  // width is capped so a very wide window does not leave two sparse islands.
+  const half = Math.floor((width - 3) / 2);
+  const columnWidth = Math.min(half, 90);
+  const compactWidths = agendaWidths(occurrences, columnWidth, {
+    compact: true,
   });
+  const needed =
+    15 +
+    compactWidths.titleWidth +
+    compactWidths.venueWidth +
+    compactWidths.priceWidth;
+  if (!wide && dates.length > 1 && columnWidth >= 64 && needed <= columnWidth) {
+    const split = balancedSplit(blocks);
+    const left = stackBlocks(
+      dates.slice(0, split).map((date) =>
+        dayBlock({
+          date,
+          rows: groups.get(date) || [],
+          today,
+          painter,
+          widths: compactWidths,
+          venueFor,
+        }),
+      ),
+    );
+    const right = stackBlocks(
+      dates.slice(split).map((date) =>
+        dayBlock({
+          date,
+          rows: groups.get(date) || [],
+          today,
+          painter,
+          widths: compactWidths,
+          venueFor,
+        }),
+      ),
+    );
+    const gutter = painter.dim(" │ ");
+    const max = Math.max(left.length, right.length);
+    body = [];
+    for (let index = 0; index < max; index += 1) {
+      const leftLine = left[index] || "";
+      const rightLine = right[index] || "";
+      body.push(
+        `${padVisible(leftLine, columnWidth)}${gutter}${rightLine}`.trimEnd(),
+      );
+    }
+  }
+
+  const lines = [`${painter.bold("Glasgow Theatre")} · ${label}`, "", ...body];
 
   const notes = [];
   if (occurrences.some((occurrence) => occurrence.runOnly)) {
@@ -155,7 +245,95 @@ export function renderAgenda({
   return `${lines.join("\n")}\n`;
 }
 
-export function renderMonth({ runs, label, today, painter, width, venueFor }) {
+const dayMonth = (iso) => formatShortDate(iso).split(" ").slice(1).join(" ");
+
+/** A shorter when-label for the two-column month: still tells you the date. */
+function compactWhen(show, today) {
+  const { opens, closes } = show.run;
+  if (opens === closes) return formatShortDate(opens);
+  if (opens < today) return `until ${dayMonth(closes)}`;
+  if (opens.slice(0, 7) === closes.slice(0, 7)) {
+    return `${Number(opens.slice(8, 10))}–${dayMonth(closes)}`;
+  }
+  return `${dayMonth(opens)}–${dayMonth(closes)}`;
+}
+
+export function renderMonth({
+  runs,
+  label,
+  today,
+  painter,
+  width,
+  venueFor,
+  wide = false,
+}) {
+  const venueCount = new Set(runs.map(({ show }) => show.venue.id)).size;
+  const footer = painter.dim(
+    `${countLabel(runs.length, "show")} · ${countLabel(venueCount, "venue")} · glasgowtheatre.com`,
+  );
+
+  // On a wide terminal, put half the run list beside the other half. The
+  // compact row keeps the date (or "until 7 Nov") plus venue and price, and
+  // drops the separate OPENS column so the two halves stay readable.
+  const half = Math.floor((width - 3) / 2);
+  const columnWidth = Math.min(half, 90);
+  const whenWidth = 13;
+  const compactVenueWidth = 16;
+  const compactPriceWidth = 7;
+  const compactFixed =
+    whenWidth + 2 + 2 + compactVenueWidth + 2 + compactPriceWidth;
+  const maxTitle = Math.max(
+    16,
+    ...runs.map(({ show }) => show.title.length),
+  );
+  const compactTitleWidth = Math.max(
+    16,
+    Math.min(maxTitle, 40, columnWidth - compactFixed),
+  );
+  if (
+    !wide &&
+    runs.length >= 8 &&
+    columnWidth >= 64 &&
+    compactFixed + compactTitleWidth <= columnWidth
+  ) {
+    const header = painter.dim(
+      `${"WHEN".padEnd(whenWidth)}  ${"SHOW".padEnd(compactTitleWidth)}  ${"VENUE".padEnd(compactVenueWidth)}  ${"FROM".padStart(compactPriceWidth)}`,
+    );
+    const row = ({ show }) => {
+      const venue = venuePill(
+        venueFor(show),
+        compactVenueWidth,
+        painter,
+      );
+      const price = priceLabel(
+        { show, price: null },
+        { fromPrefix: false },
+      );
+      return `${compactWhen(show, today).padEnd(whenWidth)}` +
+        `  ${painter.bold(truncate(show.title, compactTitleWidth).padEnd(compactTitleWidth))}` +
+        `  ${venue}` +
+        `  ${painter.dim(price.padStart(compactPriceWidth))}`;
+    };
+    const split = Math.ceil(runs.length / 2);
+    const left = [header, ...runs.slice(0, split).map(row)];
+    const right = [header, ...runs.slice(split).map(row)];
+    const gutter = painter.dim(" │ ");
+    const height = Math.max(left.length, right.length);
+    const lines = [
+      `${painter.bold("Glasgow Theatre")} · ${label}`,
+      "",
+    ];
+    for (let index = 0; index < height; index += 1) {
+      const leftLine = left[index] || "";
+      const rightLine = right[index] || "";
+      lines.push(
+        `${padVisible(leftLine, columnWidth)}${gutter}${rightLine}`.trimEnd(),
+      );
+    }
+    lines.push("", footer);
+    return `${lines.join("\n")}\n`;
+  }
+
   const opensWidth = 10;
   const runsWidth = 13;
   const priceWidth = 7;
@@ -167,10 +345,6 @@ export function renderMonth({ runs, label, today, painter, width, venueFor }) {
     ),
   );
   const fixed = 38 + venueWidth;
-  const maxTitle = Math.max(
-    16,
-    ...runs.map(({ show }) => show.title.length),
-  );
   const titleWidth = Math.max(16, Math.min(maxTitle, width - fixed));
 
   const header = `${"OPENS".padEnd(opensWidth)}  ${"SHOW".padEnd(titleWidth)}  ${"VENUE".padEnd(venueWidth)}  ${"RUNS".padEnd(runsWidth)}${"FROM".padStart(priceWidth)}`;
@@ -191,13 +365,7 @@ export function renderMonth({ runs, label, today, painter, width, venueFor }) {
     );
   }
 
-  const venueCount = new Set(runs.map(({ show }) => show.venue.id)).size;
-  lines.push("");
-  lines.push(
-    painter.dim(
-      `${countLabel(runs.length, "show")} · ${countLabel(venueCount, "venue")} · glasgowtheatre.com`,
-    ),
-  );
+  lines.push("", footer);
   return `${lines.join("\n")}\n`;
 }
 

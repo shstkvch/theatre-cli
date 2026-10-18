@@ -1,9 +1,9 @@
 import { readCache, writeCache } from "./cache.js";
+import { VERSION } from "./version.js";
 
 const DEFAULT_ROOT = "https://glasgowtheatre.com/api/v1";
 const TTL_MS = 10 * 60 * 1000;
-const USER_AGENT =
-  "theatre-cli/0.1.0 (+https://github.com/shstkvch/theatre-cli)";
+const USER_AGENT = `theatre-cli/${VERSION} (+https://github.com/shstkvch/theatre-cli)`;
 
 export function apiRoot() {
   return (process.env.THEATRE_API_ROOT || DEFAULT_ROOT).replace(/\/$/, "");

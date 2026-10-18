@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+printf '\nRunning tests before push...\n'
+npm test
+printf '\nTests passed; pushing.\n\n'

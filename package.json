@@ -1,6 +1,6 @@
 {
   "name": "theatre-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "What's on in Glasgow's theatres, from your terminal",
   "type": "module",
   "bin": {
@@ -14,7 +14,9 @@
   ],
   "scripts": {
     "test": "node --test",
-    "start": "node bin/theatre.js"
+    "start": "node bin/theatre.js",
+    "hooks": "git config core.hooksPath .githooks",
+    "prepublishOnly": "npm test"
   },
   "engines": {
     "node": ">=20"

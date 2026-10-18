@@ -97,6 +97,11 @@ theatre month --q macbeth
   the row says `from £x`, `free`, `PWYL`, or `—` when no price was published.
 - **`month`** is one line per show, not one line per night, so a long run does
   not swamp the list.
+- **Two columns on a wide terminal.** `theatre week` and `theatre month`
+  switch to two balanced columns once the terminal is at least 131 columns
+  wide, so a busy week or a long month needs less scrolling. Narrower
+  terminals keep the single-column view. `THEATRE_WIDTH=140 theatre week`
+  forces a width when you want to see it.
 
 ## Colour
 
@@ -161,8 +166,12 @@ always confirm with the venue. This project is not affiliated with any venue.
 
 ```sh
 npm test
+npm run hooks     # run tests automatically before every git push
 node bin/theatre.js week --plain
 ```
+
+GitHub Actions is optional; the pre-push hook is the local guarantee that a
+broken test never reaches the remote.
 
 The code is deliberately dependency-free:
 
