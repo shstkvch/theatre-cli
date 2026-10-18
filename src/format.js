@@ -72,7 +72,7 @@ function agendaWidths(occurrences, totalWidth) {
   const fixed = 15 + venueWidth + priceWidth;
   const titleWidth = Math.max(
     16,
-    Math.min(52, maxTitle, totalWidth - fixed),
+    Math.min(maxTitle, totalWidth - fixed),
   );
   return { timeWidth, priceWidth, venueWidth, titleWidth };
 }
@@ -167,7 +167,11 @@ export function renderMonth({ runs, label, today, painter, width, venueFor }) {
     ),
   );
   const fixed = 38 + venueWidth;
-  const titleWidth = Math.max(16, Math.min(46, width - fixed));
+  const maxTitle = Math.max(
+    16,
+    ...runs.map(({ show }) => show.title.length),
+  );
+  const titleWidth = Math.max(16, Math.min(maxTitle, width - fixed));
 
   const header = `${"OPENS".padEnd(opensWidth)}  ${"SHOW".padEnd(titleWidth)}  ${"VENUE".padEnd(venueWidth)}  ${"RUNS".padEnd(runsWidth)}${"FROM".padStart(priceWidth)}`;
   const lines = [
